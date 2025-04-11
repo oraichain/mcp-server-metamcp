@@ -30,6 +30,16 @@ import {
 } from "./fetch-capabilities.js";
 import { ToolLogManager } from "./tool-logs.js";
 
+function customToolName(toolName: string, serverName: string) {
+  // return `${sanitizeName(serverName)}__${toolName}`;
+  return toolName;
+}
+
+function extractOriginalToolName(toolName: string) {
+  // return toolName.split("__")[1];
+  return toolName;
+}
+
 const toolToClient: Record<string, ConnectedClient> = {};
 const toolToServerUuid: Record<string, string> = {};
 const promptToClient: Record<string, ConnectedClient> = {};
@@ -104,7 +114,7 @@ export const createServer = async () => {
                 return true;
               })
               .map((tool) => {
-                const toolName = `${sanitizeName(serverName)}__${tool.name}`;
+                const toolName = customToolName(tool.name, serverName);
                 toolToClient[toolName] = session;
                 toolToServerUuid[toolName] = uuid;
                 return {
@@ -121,9 +131,7 @@ export const createServer = async () => {
             result.tools?.forEach((tool) => {
               const isInactive = inactiveTools[`${uuid}:${tool.name}`];
               if (isInactive) {
-                const formattedName = `${sanitizeName(serverName)}__${
-                  tool.name
-                }`;
+                const formattedName = customToolName(tool.name, serverName);
                 inactiveToolsMap[formattedName] = true;
               }
             });
@@ -152,7 +160,7 @@ export const createServer = async () => {
   // Call Tool Handler
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-    const originalToolName = name.split("__")[1];
+    const originalToolName = extractOriginalToolName(name);
     const clientForTool = toolToClient[name];
     const toolLogManager = ToolLogManager.getInstance();
     let logId: string | undefined;
@@ -258,7 +266,7 @@ export const createServer = async () => {
     }
 
     try {
-      const promptName = name.split("__")[1];
+      const promptName = extractOriginalToolName(name);
       const response = await clientForPrompt.client.request(
         {
           method: "prompts/get",
@@ -312,7 +320,7 @@ export const createServer = async () => {
 
           if (result.prompts) {
             const promptsWithSource = result.prompts.map((prompt) => {
-              const promptName = `${sanitizeName(serverName)}__${prompt.name}`;
+              const promptName = customToolName(prompt.name, serverName);
               promptToClient[promptName] = session;
               return {
                 ...prompt,
